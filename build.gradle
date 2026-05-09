@@ -1,0 +1,36 @@
+plugins {
+    id 'java'
+    // Spring Boot 3.2.5와 가장 잘 맞는 플러그인 조합입니다.
+    id 'org.springframework.boot' version '3.2.5'
+    id 'io.spring.dependency-management' version '1.1.4' // 버전을 1.1.4로 확실히 고정!
+}
+group = 'com.backend14'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    // 자바 21을 유지하면서 안정성을 챙깁니다.
+    sourceCompatibility = '21'
+}
+
+repositories {
+    mavenCentral()
+    maven { url 'https://repo.spring.io/milestone' }
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    // Spring AI Ollama (가장 안정적인 M1 버전)
+    implementation 'org.springframework.ai:spring-ai-ollama-spring-boot-starter:1.0.0-M1'
+
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+dependencyManagement {
+    imports {
+        // AI 라이브러리들 간의 버전 충돌을 막아주는 핵심 설정입니다.
+        mavenBom "org.springframework.ai:spring-ai-bom:1.0.0-M1"
+    }
+}
