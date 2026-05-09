@@ -9,5 +9,5 @@ spring:
         enabled: false
 
 kakao:
-  rest-api-key: "여기에_카카오_REST_API_KEY"
-  javascript-key: "여기에_카카오_JAVASCRIPT_KEY"
+  rest-api-key: "카카오_REST_API_KEY"
+  javascript-key: "카카오_JAVASCRIPT_KEY"

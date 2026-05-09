@@ -14,6 +14,8 @@ public class FoodMapGui extends JFrame {
 
   private static final String BASE_URL = "http://localhost:8080";
 
+
+  private JButton metadataMapButton;
   private JTextField urlField;
   private JTextArea resultArea;
 
@@ -24,6 +26,7 @@ public class FoodMapGui extends JFrame {
   private JButton keywordMapButton;
 
   public FoodMapGui() {
+
     setTitle("AI 맛집 탐정");
     setSize(850, 700);
     setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -35,6 +38,7 @@ public class FoodMapGui extends JFrame {
   private void createUI() {
     JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
     mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
 
     JLabel titleLabel = new JLabel("AI 맛집 탐정", SwingConstants.CENTER);
     titleLabel.setFont(new Font("SansSerif", Font.BOLD, 26));
@@ -56,12 +60,13 @@ public class FoodMapGui extends JFrame {
     saveButton = new JButton("3. 결과 txt 저장");
     autoMapButton = new JButton("4. AI가 찾은 장소 지도 표시");
     keywordMapButton = new JButton("5. 직접 검색해서 지도 표시");
-
+    metadataMapButton = new JButton("6. 설명글 기반 지도 표시");
     buttonPanel.add(captureButton);
     buttonPanel.add(analyzeButton);
     buttonPanel.add(saveButton);
     buttonPanel.add(autoMapButton);
     buttonPanel.add(keywordMapButton);
+    buttonPanel.add(metadataMapButton);
 
     topPanel.add(inputPanel, BorderLayout.NORTH);
     topPanel.add(buttonPanel, BorderLayout.SOUTH);
@@ -86,6 +91,8 @@ public class FoodMapGui extends JFrame {
     saveButton.addActionListener(e -> saveResultToTxt());
     autoMapButton.addActionListener(e -> openMapAutomatically());
     keywordMapButton.addActionListener(e -> openMapByKeyword());
+    metadataMapButton.addActionListener(e -> openMapFromMetadata());
+
   }
 
   private void captureVideo() {
@@ -161,6 +168,7 @@ public class FoodMapGui extends JFrame {
         });
       }
     }).start();
+
   }
 
   private void openMapByKeyword() {
@@ -204,6 +212,7 @@ public class FoodMapGui extends JFrame {
     saveButton.setEnabled(enabled);
     autoMapButton.setEnabled(enabled);
     keywordMapButton.setEnabled(enabled);
+    metadataMapButton.setEnabled(enabled);
   }
 
   private String sendGetRequest(String requestUrl) throws IOException {
@@ -277,4 +286,35 @@ public class FoodMapGui extends JFrame {
           "파일 저장 실패: " + e.getMessage());
     }
   }
+  private void openMapFromMetadata() {
+    String videoUrl = urlField.getText().trim();
+
+    if (videoUrl.isEmpty()) {
+      JOptionPane.showMessageDialog(this, "영상 URL을 입력해주세요.");
+      return;
+    }
+
+    setLoading("영상 설명글에서 장소를 찾고 카카오맵에 표시하는 중입니다...");
+
+    new Thread(() -> {
+      try {
+        String encodedUrl = URLEncoder.encode(videoUrl, StandardCharsets.UTF_8);
+        String requestUrl = BASE_URL + "/ai/map-from-metadata?url=" + encodedUrl;
+
+        String response = sendGetRequest(requestUrl);
+
+        SwingUtilities.invokeLater(() -> {
+          resultArea.setText(response);
+          setButtonEnabled(true);
+        });
+
+      } catch (Exception ex) {
+        SwingUtilities.invokeLater(() -> {
+          resultArea.setText("설명글 기반 지도 표시 중 오류 발생: " + ex.getMessage());
+          setButtonEnabled(true);
+        });
+      }
+    }).start();
+  }
+
 }

@@ -23,15 +23,18 @@ public class AiController {
   private final VideoService videoService;
   private final KakaoPlaceService kakaoPlaceService;
   private final MapService mapService;
+  private final VideoMetadataService videoMetadataService;
 
   public AiController(OllamaChatModel chatModel,
                       VideoService videoService,
                       KakaoPlaceService kakaoPlaceService,
-                      MapService mapService) {
+                      MapService mapService,
+                      VideoMetadataService videoMetadataService) {
     this.chatModel = chatModel;
     this.videoService = videoService;
     this.kakaoPlaceService = kakaoPlaceService;
     this.mapService = mapService;
+    this.videoMetadataService = videoMetadataService;
   }
 
   @GetMapping("/ai/test")
@@ -198,6 +201,73 @@ public class AiController {
     } catch (Exception e) {
       e.printStackTrace();
       return "텍스트 파일 저장 실패: " + e.getMessage();
+    }
+  }
+  @GetMapping("/ai/metadata")
+  public String extractMetadata(@RequestParam String url) {
+    return videoMetadataService.extractMetadataText(url);
+  }
+  @GetMapping("/ai/map-from-metadata")
+  public String mapFromMetadata(@RequestParam String url) {
+    try {
+      String metadata = videoMetadataService.extractMetadataText(url);
+
+      String prompt = """
+                아래는 영상 제목과 설명글입니다.
+                이 내용에서 카카오맵에 검색할 수 있는 실제 가게 이름 또는 장소명 하나만 찾아주세요.
+
+                규칙:
+                1. '맛집', '카페', '식당', '추천' 같은 일반 단어는 제외하세요.
+                2. 주소가 있으면 주소보다 상호명을 우선하세요.
+                3. 상호명이 없고 주소만 있으면 주소를 출력하세요.
+                4. 여러 개가 있으면 가장 핵심 장소 하나만 출력하세요.
+                5. 설명하지 말고 검색어 한 줄만 출력하세요.
+                6. 찾을 수 없으면 '알 수 없음'이라고 출력하세요.
+
+                [영상 정보]
+                %s
+                """.formatted(metadata);
+
+      String keyword = chatModel.call(prompt);
+      keyword = cleanKeyword(keyword);
+
+      if (keyword.isBlank() || keyword.contains("알 수 없음")) {
+        return "설명글에서 장소명을 찾지 못했습니다.\n\n" + metadata;
+      }
+
+      PlaceResult place = kakaoPlaceService.searchPlace(keyword);
+
+      if (place == null) {
+        return "카카오맵에서 장소를 찾지 못했습니다.\n검색어: " + keyword + "\n\n" + metadata;
+      }
+
+      String mapUrl = mapService.openMap(place);
+
+      return """
+                설명글 기반 지도 표시 완료
+
+                추출 검색어: %s
+                카카오맵 검색 결과: %s
+                주소: %s
+                위도: %f
+                경도: %f
+                지도 주소: %s
+
+                ---- 원본 메타데이터 ----
+                %s
+                """.formatted(
+          keyword,
+          place.getName(),
+          place.getAddress(),
+          place.getLatitude(),
+          place.getLongitude(),
+          mapUrl,
+          metadata
+      );
+
+    } catch (Exception e) {
+      e.printStackTrace();
+      return "설명글 기반 지도 표시 중 오류 발생: " + e.getMessage();
     }
   }
 }
