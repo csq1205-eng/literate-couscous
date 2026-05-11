@@ -43,9 +43,10 @@ public class AiController {
   }
 
   @GetMapping("/ai/capture")
-  public String capture(@RequestParam String url) {
-    String filePath = videoService.captureFrame(url);
-    return "캡처 완료! 저장 위치: " + filePath;
+  public String capture(@RequestParam String url,
+                        @RequestParam(defaultValue = "00:00:10") String time) {
+    String filePath = videoService.captureFrame(url, time);
+    return "캡처 완료! 캡처 시간: " + time + "\n저장 위치: " + filePath;
   }
 
   @GetMapping("/ai/analyze")
@@ -174,6 +175,10 @@ public class AiController {
         .replace("장소명:", "")
         .replace("가게명:", "")
         .replace("검색어:", "")
+        .replace("입니다.", "")
+        .replace("입니다", "")
+        .replace("입니다,", "")
+        .replace(".", "")
         .trim();
   }
 
@@ -213,20 +218,26 @@ public class AiController {
       String metadata = videoMetadataService.extractMetadataText(url);
 
       String prompt = """
-                아래는 영상 제목과 설명글입니다.
-                이 내용에서 카카오맵에 검색할 수 있는 실제 가게 이름 또는 장소명 하나만 찾아주세요.
+        아래는 영상 제목과 설명글입니다.
+        이 내용에서 카카오맵에 검색할 수 있는 실제 가게 이름 또는 주소 하나만 찾아주세요.
 
-                규칙:
-                1. '맛집', '카페', '식당', '추천' 같은 일반 단어는 제외하세요.
-                2. 주소가 있으면 주소보다 상호명을 우선하세요.
-                3. 상호명이 없고 주소만 있으면 주소를 출력하세요.
-                4. 여러 개가 있으면 가장 핵심 장소 하나만 출력하세요.
-                5. 설명하지 말고 검색어 한 줄만 출력하세요.
-                6. 찾을 수 없으면 '알 수 없음'이라고 출력하세요.
+        규칙:
+        1. 설명하지 마세요.
+        2. 문장으로 쓰지 마세요.
+        3. '~입니다', '~로 보입니다' 같은 말은 붙이지 마세요.
+        4. 실제 상호명 또는 주소만 한 줄로 출력하세요.
+        5. 식당목록이 있으면 그중 하나의 상호명만 출력하세요.
+        6. 찾을 수 없으면 '알 수 없음'이라고만 출력하세요.
 
-                [영상 정보]
-                %s
-                """.formatted(metadata);
+        좋은 출력 예시:
+        쿠치카츠쿠마
+
+        나쁜 출력 예시:
+        쿠치카츠쿠마입니다.
+
+        [영상 정보]
+        %s
+        """.formatted(metadata);
 
       String keyword = chatModel.call(prompt);
       keyword = cleanKeyword(keyword);
@@ -238,7 +249,18 @@ public class AiController {
       PlaceResult place = kakaoPlaceService.searchPlace(keyword);
 
       if (place == null) {
-        return "카카오맵에서 장소를 찾지 못했습니다.\n검색어: " + keyword + "\n\n" + metadata;
+        String address = findAddressNearKeyword(metadata, keyword);
+
+        if (!address.isBlank()) {
+          place = kakaoPlaceService.searchPlace(address);
+        }
+
+        if (place == null) {
+          return "카카오맵에서 장소를 찾지 못했습니다."
+              + "\n검색어: " + keyword
+              + "\n주소 후보: " + address
+              + "\n\n" + metadata;
+        }
       }
 
       String mapUrl = mapService.openMap(place);
@@ -269,5 +291,62 @@ public class AiController {
       e.printStackTrace();
       return "설명글 기반 지도 표시 중 오류 발생: " + e.getMessage();
     }
+  }
+  private String findAddressNearKeyword(String metadata, String keyword) {
+    if (metadata == null || keyword == null || keyword.isBlank()) {
+      return "";
+    }
+
+    String[] lines = metadata.split("\\R");
+
+    for (int i = 0; i < lines.length; i++) {
+      String line = lines[i].trim();
+
+      if (line.contains(keyword)) {
+        // 가게명 바로 다음 줄에 주소가 있는 경우
+        if (i + 1 < lines.length) {
+          String nextLine = lines[i + 1].trim();
+
+          if (looksLikeAddress(nextLine)) {
+            return nextLine;
+          }
+        }
+
+        // 혹시 다음다음 줄에 주소가 있는 경우
+        if (i + 2 < lines.length) {
+          String nextNextLine = lines[i + 2].trim();
+
+          if (looksLikeAddress(nextNextLine)) {
+            return nextNextLine;
+          }
+        }
+      }
+    }
+
+    return "";
+  }
+
+  private boolean looksLikeAddress(String text) {
+    if (text == null) {
+      return false;
+    }
+
+    return text.contains("서울")
+        || text.contains("경기")
+        || text.contains("인천")
+        || text.contains("부산")
+        || text.contains("대구")
+        || text.contains("광주")
+        || text.contains("대전")
+        || text.contains("울산")
+        || text.contains("세종")
+        || text.contains("강원")
+        || text.contains("충북")
+        || text.contains("충남")
+        || text.contains("전북")
+        || text.contains("전남")
+        || text.contains("경북")
+        || text.contains("경남")
+        || text.contains("제주");
   }
 }

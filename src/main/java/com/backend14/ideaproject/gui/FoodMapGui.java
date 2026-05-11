@@ -10,20 +10,20 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+
 public class FoodMapGui extends JFrame {
 
   private static final String BASE_URL = "http://localhost:8080";
 
 
-  private JButton metadataMapButton;
   private JTextField urlField;
   private JTextArea resultArea;
 
-  private JButton captureButton;
-  private JButton analyzeButton;
-  private JButton saveButton;
+  private JButton analyzeAllButton;
   private JButton autoMapButton;
   private JButton keywordMapButton;
+  private JButton saveButton;
+  private JButton viewResultsButton;
 
   public FoodMapGui() {
 
@@ -55,18 +55,17 @@ public class FoodMapGui extends JFrame {
 
     JPanel buttonPanel = new JPanel(new FlowLayout());
 
-    captureButton = new JButton("1. 영상 캡처하기");
-    analyzeButton = new JButton("2. AI 분석하기");
-    saveButton = new JButton("3. 결과 txt 저장");
-    autoMapButton = new JButton("4. AI가 찾은 장소 지도 표시");
-    keywordMapButton = new JButton("5. 직접 검색해서 지도 표시");
-    metadataMapButton = new JButton("6. 설명글 기반 지도 표시");
-    buttonPanel.add(captureButton);
-    buttonPanel.add(analyzeButton);
-    buttonPanel.add(saveButton);
+    analyzeAllButton = new JButton("1. 영상 분석하기");
+    autoMapButton = new JButton("2. 자동 지도 표시");
+    keywordMapButton = new JButton("3. 직접 검색해서 지도 표시");
+    saveButton = new JButton("4. 결과 저장하기");
+    viewResultsButton = new JButton("5. 저장한 결과 보기");
+
+    buttonPanel.add(analyzeAllButton);
     buttonPanel.add(autoMapButton);
     buttonPanel.add(keywordMapButton);
-    buttonPanel.add(metadataMapButton);
+    buttonPanel.add(saveButton);
+    buttonPanel.add(viewResultsButton);
 
     topPanel.add(inputPanel, BorderLayout.NORTH);
     topPanel.add(buttonPanel, BorderLayout.SOUTH);
@@ -86,15 +85,12 @@ public class FoodMapGui extends JFrame {
 
     add(mainPanel);
 
-    captureButton.addActionListener(e -> captureVideo());
-    analyzeButton.addActionListener(e -> analyzeImage());
-    saveButton.addActionListener(e -> saveResultToTxt());
-    autoMapButton.addActionListener(e -> openMapAutomatically());
+    analyzeAllButton.addActionListener(e -> analyzeVideoAllInOne());
+    autoMapButton.addActionListener(e -> openAutoMapMenu());
     keywordMapButton.addActionListener(e -> openMapByKeyword());
-    metadataMapButton.addActionListener(e -> openMapFromMetadata());
-
+    saveButton.addActionListener(e -> saveResultToTxt());
+    viewResultsButton.addActionListener(e -> openSavedResultsWindow());
   }
-
   private void captureVideo() {
     String videoUrl = urlField.getText().trim();
 
@@ -102,6 +98,7 @@ public class FoodMapGui extends JFrame {
       JOptionPane.showMessageDialog(this, "영상 URL을 입력해주세요.");
       return;
     }
+
 
     setLoading("영상 캡처 중입니다...");
 
@@ -207,12 +204,11 @@ public class FoodMapGui extends JFrame {
   }
 
   private void setButtonEnabled(boolean enabled) {
-    captureButton.setEnabled(enabled);
-    analyzeButton.setEnabled(enabled);
-    saveButton.setEnabled(enabled);
+    analyzeAllButton.setEnabled(enabled);
     autoMapButton.setEnabled(enabled);
     keywordMapButton.setEnabled(enabled);
-    metadataMapButton.setEnabled(enabled);
+    saveButton.setEnabled(enabled);
+    viewResultsButton.setEnabled(enabled);
   }
 
   private String sendGetRequest(String requestUrl) throws IOException {
@@ -316,5 +312,306 @@ public class FoodMapGui extends JFrame {
       }
     }).start();
   }
+  private void openSavedPostsWindow() {
+    JFrame frame = new JFrame("저장한 맛집");
+    frame.setSize(650, 750);
+    frame.setLocationRelativeTo(this);
+
+    JPanel listPanel = new JPanel();
+    listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
+    listPanel.setBackground(new Color(245, 245, 245));
+
+    File savedDir = new File("saved_posts");
+
+    if (!savedDir.exists() || savedDir.listFiles() == null) {
+      JLabel emptyLabel = new JLabel("저장한 게시물이 없습니다.");
+      emptyLabel.setHorizontalAlignment(SwingConstants.CENTER);
+      listPanel.add(emptyLabel);
+    } else {
+      File[] postDirs = savedDir.listFiles(File::isDirectory);
+
+      if (postDirs == null || postDirs.length == 0) {
+        JLabel emptyLabel = new JLabel("저장한 게시물이 없습니다.");
+        emptyLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        listPanel.add(emptyLabel);
+      } else {
+        for (File postDir : postDirs) {
+          JPanel card = createPostCard(postDir);
+          listPanel.add(card);
+          listPanel.add(Box.createVerticalStrut(16));
+        }
+      }
+    }
+
+    JScrollPane scrollPane = new JScrollPane(listPanel);
+    frame.add(scrollPane);
+
+    frame.setVisible(true);
+  }
+  private JPanel createPostCard(File postDir) {
+    JPanel card = new JPanel();
+    card.setLayout(new BorderLayout(10, 10));
+    card.setBackground(Color.WHITE);
+    card.setBorder(BorderFactory.createCompoundBorder(
+        BorderFactory.createEmptyBorder(12, 12, 12, 12),
+        BorderFactory.createLineBorder(new Color(220, 220, 220))
+    ));
+
+    card.setMaximumSize(new Dimension(580, 650));
+
+    // 상단 제목
+    JLabel header = new JLabel("  🍽 맛길잡이");
+    header.setFont(new Font("SansSerif", Font.BOLD, 18));
+    header.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+    card.add(header, BorderLayout.NORTH);
+
+    // 이미지
+    File imageFile = new File(postDir, "image.jpg");
+
+    if (imageFile.exists()) {
+      ImageIcon imageIcon = new ImageIcon(imageFile.getAbsolutePath());
+
+      Image scaledImage = imageIcon.getImage()
+          .getScaledInstance(540, 300, Image.SCALE_SMOOTH);
+
+      JLabel imageLabel = new JLabel(new ImageIcon(scaledImage));
+      imageLabel.setHorizontalAlignment(SwingConstants.CENTER);
+
+      card.add(imageLabel, BorderLayout.CENTER);
+    } else {
+      JLabel noImageLabel = new JLabel("이미지가 없습니다.", SwingConstants.CENTER);
+      noImageLabel.setPreferredSize(new Dimension(540, 200));
+      card.add(noImageLabel, BorderLayout.CENTER);
+    }
+
+    // 텍스트
+    String content = readContent(new File(postDir, "content.txt"));
+
+    JTextArea contentArea = new JTextArea(content);
+    contentArea.setLineWrap(true);
+    contentArea.setWrapStyleWord(true);
+    contentArea.setEditable(false);
+    contentArea.setFont(new Font("SansSerif", Font.PLAIN, 14));
+    contentArea.setBackground(Color.WHITE);
+    contentArea.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+    JScrollPane textScroll = new JScrollPane(contentArea);
+    textScroll.setPreferredSize(new Dimension(540, 180));
+
+    // 하단 버튼
+    JButton openFolderButton = new JButton("폴더 열기");
+    openFolderButton.addActionListener(e -> {
+      try {
+        Desktop.getDesktop().open(postDir);
+      } catch (Exception ex) {
+        JOptionPane.showMessageDialog(this, "폴더 열기 실패: " + ex.getMessage());
+      }
+    });
+
+    JPanel bottomPanel = new JPanel(new BorderLayout());
+    bottomPanel.setBackground(Color.WHITE);
+    bottomPanel.add(textScroll, BorderLayout.CENTER);
+    bottomPanel.add(openFolderButton, BorderLayout.SOUTH);
+
+    card.add(bottomPanel, BorderLayout.SOUTH);
+
+    return card;
+  }
+  private void openSavedResultsWindow() {
+    JFrame frame = new JFrame("저장한 분석 결과");
+    frame.setSize(650, 750);
+    frame.setLocationRelativeTo(this);
+
+    JPanel listPanel = new JPanel();
+    listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
+    listPanel.setBackground(new Color(245, 245, 245));
+    listPanel.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+
+    File resultDir = new File("result");
+
+    if (!resultDir.exists()) {
+      JLabel emptyLabel = new JLabel("저장된 분석 결과가 없습니다.");
+      emptyLabel.setHorizontalAlignment(SwingConstants.CENTER);
+      listPanel.add(emptyLabel);
+    } else {
+      File[] txtFiles = resultDir.listFiles((dir, name) -> name.endsWith(".txt"));
+
+      if (txtFiles == null || txtFiles.length == 0) {
+        JLabel emptyLabel = new JLabel("저장된 분석 결과가 없습니다.");
+        emptyLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        listPanel.add(emptyLabel);
+      } else {
+        // 최신 파일이 위로 오게 정렬
+        java.util.Arrays.sort(txtFiles, (a, b) -> Long.compare(b.lastModified(), a.lastModified()));
+
+        for (File txtFile : txtFiles) {
+          JPanel card = createResultCard(txtFile);
+          listPanel.add(card);
+          listPanel.add(Box.createVerticalStrut(16));
+        }
+      }
+    }
+
+
+    JScrollPane scrollPane = new JScrollPane(listPanel);
+    frame.add(scrollPane);
+    frame.setVisible(true);
+  }
+  private JPanel createResultCard(File txtFile) {
+    JPanel card = new JPanel();
+    card.setLayout(new BorderLayout(10, 10));
+    card.setBackground(Color.WHITE);
+    card.setBorder(BorderFactory.createCompoundBorder(
+        BorderFactory.createLineBorder(new Color(220, 220, 220)),
+        BorderFactory.createEmptyBorder(14, 14, 14, 14)
+    ));
+
+    card.setMaximumSize(new Dimension(580, 420));
+
+    JLabel header = new JLabel("  🍽 맛길잡이");
+    header.setFont(new Font("SansSerif", Font.BOLD, 18));
+    header.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
+
+    JLabel fileNameLabel = new JLabel("  " + txtFile.getName());
+    fileNameLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+    fileNameLabel.setForeground(Color.GRAY);
+
+    JPanel headerPanel = new JPanel(new BorderLayout());
+    headerPanel.setBackground(Color.WHITE);
+    headerPanel.add(header, BorderLayout.NORTH);
+    headerPanel.add(fileNameLabel, BorderLayout.SOUTH);
+
+    card.add(headerPanel, BorderLayout.NORTH);
+
+    String content = readContent(txtFile);
+
+    JTextArea contentArea = new JTextArea(content);
+    contentArea.setLineWrap(true);
+    contentArea.setWrapStyleWord(true);
+    contentArea.setEditable(false);
+    contentArea.setFont(new Font("SansSerif", Font.PLAIN, 14));
+    contentArea.setBackground(Color.WHITE);
+    contentArea.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+    JScrollPane textScroll = new JScrollPane(contentArea);
+    textScroll.setPreferredSize(new Dimension(540, 250));
+
+    card.add(textScroll, BorderLayout.CENTER);
+
+    JButton openFileButton = new JButton("txt 파일 열기");
+    openFileButton.addActionListener(e -> {
+      try {
+        Desktop.getDesktop().open(txtFile);
+      } catch (Exception ex) {
+        JOptionPane.showMessageDialog(this, "파일 열기 실패: " + ex.getMessage());
+      }
+    });
+
+    JButton copyButton = new JButton("내용 복사");
+    copyButton.addActionListener(e -> {
+      Toolkit.getDefaultToolkit()
+          .getSystemClipboard()
+          .setContents(new java.awt.datatransfer.StringSelection(content), null);
+
+      JOptionPane.showMessageDialog(this, "내용을 복사했습니다.");
+    });
+
+    JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+    buttonPanel.setBackground(Color.WHITE);
+    buttonPanel.add(copyButton);
+    buttonPanel.add(openFileButton);
+
+    card.add(buttonPanel, BorderLayout.SOUTH);
+
+    return card;
+  }
+  private String readContent(File file) {
+    if (!file.exists()) {
+      return "내용이 없습니다.";
+    }
+
+    try {
+      BufferedReader reader = new BufferedReader(new FileReader(file));
+      StringBuilder sb = new StringBuilder();
+
+      String line;
+
+      while ((line = reader.readLine()) != null) {
+        sb.append(line).append("\n");
+      }
+
+      reader.close();
+
+      return sb.toString();
+
+    } catch (Exception e) {
+      return "파일 읽기 실패: " + e.getMessage();
+    }
+  }
+    private void analyzeVideoAllInOne() {
+      String videoUrl = urlField.getText().trim();
+
+      if (videoUrl.isEmpty()) {
+        JOptionPane.showMessageDialog(this, "영상 URL을 입력해주세요.");
+        return;
+      }
+
+      setLoading("영상 캡처 후 AI 분석 중입니다...");
+
+      new Thread(() -> {
+        try {
+          String encodedUrl = URLEncoder.encode(videoUrl, StandardCharsets.UTF_8);
+
+          String captureUrl = BASE_URL + "/ai/capture?url=" + encodedUrl;
+          String captureResult = sendGetRequest(captureUrl);
+
+          String analyzeUrl = BASE_URL + "/ai/analyze";
+          String analyzeResult = sendGetRequest(analyzeUrl);
+
+          String finalResult = """
+          [캡처 결과]
+          %s
+
+          [AI 분석 결과]
+          %s
+          """.formatted(captureResult, analyzeResult);
+
+          SwingUtilities.invokeLater(() -> {
+            resultArea.setText(finalResult);
+            setButtonEnabled(true);
+          });
+
+        } catch (Exception ex) {
+          SwingUtilities.invokeLater(() -> {
+            resultArea.setText("영상 분석 중 오류 발생: " + ex.getMessage());
+            setButtonEnabled(true);
+          });
+        }
+      }).start();
+    }
+    private void openAutoMapMenu() {
+      String[] options = {
+          "설명글 기반 자동 표시",
+          "이미지 분석 기반 자동 표시"
+      };
+
+      int choice = JOptionPane.showOptionDialog(
+          this,
+          "자동 지도 표시 방식을 선택하세요.",
+          "자동 지도 표시",
+          JOptionPane.DEFAULT_OPTION,
+          JOptionPane.QUESTION_MESSAGE,
+          null,
+          options,
+          options[0]
+      );
+
+      if (choice == 0) {
+        openMapFromMetadata();
+      } else if (choice == 1) {
+        openMapAutomatically();
+      }
+    }
 
 }

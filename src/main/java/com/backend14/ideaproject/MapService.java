@@ -45,71 +45,71 @@ public class MapService {
 
   private String createMapHtml(PlaceResult place) {
     return """
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="utf-8">
-                    <title>AI 맛집 지도</title>
-                    <style>
-                        body {
-                            margin: 0;
-                            font-family: Arial, sans-serif;
-                        }
-                        #map {
-                            width: 100vw;
-                            height: 100vh;
-                        }
-                        .info-box {
-                            position: absolute;
-                            top: 20px;
-                            left: 20px;
-                            z-index: 10;
-                            background: white;
-                            padding: 14px 18px;
-                            border-radius: 10px;
-                            box-shadow: 0 2px 10px rgba(0,0,0,0.25);
-                            line-height: 1.6;
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="info-box">
-                        <b>%s</b><br>
-                        %s<br>
-                        위도: %f<br>
-                        경도: %f
-                    </div>
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <title>AI 맛집 지도</title>
+                <style>
+                    body {
+                        margin: 0;
+                        font-family: Arial, sans-serif;
+                    }
+                    #map {
+                        width: 100vw;
+                        height: 100vh;
+                    }
+                    .info-box {
+                        position: absolute;
+                        top: 20px;
+                        left: 20px;
+                        z-index: 10;
+                        background: white;
+                        padding: 14px 18px;
+                        border-radius: 10px;
+                        box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+                        line-height: 1.6;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="info-box">
+                    <b>%s</b><br>
+                    %s<br>
+                    위도: %s<br>
+                    경도: %s
+                </div>
 
-                    <div id="map"></div>
+                <div id="map"></div>
 
-                    <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=%s"></script>
-                    <script>
-                        var container = document.getElementById('map');
+                <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=%s"></script>
+                <script>
+                    var container = document.getElementById('map');
 
-                        var position = new kakao.maps.LatLng(%f, %f);
+                    var position = new kakao.maps.LatLng(%s, %s);
 
-                        var options = {
-                            center: position,
-                            level: 3
-                        };
+                    var options = {
+                        center: position,
+                        level: 3
+                    };
 
-                        var map = new kakao.maps.Map(container, options);
+                    var map = new kakao.maps.Map(container, options);
 
-                        var marker = new kakao.maps.Marker({
-                            position: position
-                        });
+                    var marker = new kakao.maps.Marker({
+                        position: position
+                    });
 
-                        marker.setMap(map);
+                    marker.setMap(map);
 
-                        var infoWindow = new kakao.maps.InfoWindow({
-                            content: '<div style="padding:8px;font-size:14px;">%s</div>'
-                        });
+                    var infoWindow = new kakao.maps.InfoWindow({
+                        content: '<div style="padding:8px;font-size:14px;">%s</div>'
+                    });
 
-                        infoWindow.open(map, marker);
-                    </script>
-                </body>
-                </html>
-                """.formatted(
+                    infoWindow.open(map, marker);
+                </script>
+            </body>
+            </html>
+            """.formatted(
         place.getName(),
         place.getAddress(),
         place.getLatitude(),
