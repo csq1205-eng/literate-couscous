@@ -11,6 +11,8 @@ import java.net.HttpURLConnection;
 import java.net.URLEncoder;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class KakaoPlaceService {
@@ -21,12 +23,29 @@ public class KakaoPlaceService {
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   public PlaceResult searchPlace(String keyword) {
+    List<PlaceResult> places = searchPlaces(keyword);
+
+    if (places.isEmpty()) {
+      return null;
+    }
+
+    return places.get(0);
+  }
+
+  public List<PlaceResult> searchPlaces(String keyword) {
     try {
+      keyword = normalizeKeyword(keyword);
+
+      if (keyword.isBlank()) {
+        return new ArrayList<>();
+      }
+
       String encodedKeyword = URLEncoder.encode(keyword, StandardCharsets.UTF_8);
 
       String requestUrl =
           "https://dapi.kakao.com/v2/local/search/keyword.json?query="
-              + encodedKeyword;
+              + encodedKeyword
+              + "&size=5";
 
       URL url = new URL(requestUrl);
       HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -62,45 +81,71 @@ public class KakaoPlaceService {
 
       if (statusCode < 200 || statusCode >= 300) {
         System.out.println("Kakao API 오류: " + response);
-        return null;
+        return new ArrayList<>();
       }
 
-      return parseFirstPlace(response.toString());
+      return parsePlaces(response.toString());
 
     } catch (Exception e) {
       e.printStackTrace();
-      return null;
+      return new ArrayList<>();
     }
   }
 
-  private PlaceResult parseFirstPlace(String json) {
+  private List<PlaceResult> parsePlaces(String json) {
+    List<PlaceResult> result = new ArrayList<>();
+
     try {
       JsonNode root = objectMapper.readTree(json);
       JsonNode documents = root.get("documents");
 
       if (documents == null || !documents.isArray() || documents.isEmpty()) {
-        return null;
+        return result;
       }
 
-      JsonNode first = documents.get(0);
+      for (JsonNode document : documents) {
+        String placeName = document.path("place_name").asText();
+        String addressName = document.path("address_name").asText();
+        String x = document.path("x").asText(); // 경도
+        String y = document.path("y").asText(); // 위도
 
-      String placeName = first.path("place_name").asText();
-      String addressName = first.path("address_name").asText();
-      String x = first.path("x").asText(); // 경도
-      String y = first.path("y").asText(); // 위도
+        if (placeName.isBlank() || x.isBlank() || y.isBlank()) {
+          continue;
+        }
 
-      if (placeName.isBlank() || x.isBlank() || y.isBlank()) {
-        return null;
+        double longitude = Double.parseDouble(x);
+        double latitude = Double.parseDouble(y);
+
+        result.add(new PlaceResult(placeName, addressName, latitude, longitude));
       }
-
-      double longitude = Double.parseDouble(x);
-      double latitude = Double.parseDouble(y);
-
-      return new PlaceResult(placeName, addressName, latitude, longitude);
 
     } catch (Exception e) {
       e.printStackTrace();
-      return null;
     }
+
+    return result;
+  }
+
+  private String normalizeKeyword(String keyword) {
+    if (keyword == null) {
+      return "";
+    }
+
+    String normalized = keyword
+        .replaceAll("\\s+", " ")
+        .trim();
+
+    if (normalized.length() <= 100) {
+      return normalized;
+    }
+
+    String shortened = normalized.substring(0, 100).trim();
+    int lastSpace = shortened.lastIndexOf(" ");
+
+    if (lastSpace >= 10) {
+      shortened = shortened.substring(0, lastSpace).trim();
+    }
+
+    return shortened;
   }
 }

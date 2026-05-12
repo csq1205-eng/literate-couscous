@@ -4,7 +4,7 @@ spring:
       base-url: http://localhost:11434
       chat:
         options:
-          model: llava
+          model: qwen2.5
       embedding:
         enabled: false
 

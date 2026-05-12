@@ -23,8 +23,6 @@ dependencies {
     // Spring AI Ollama (가장 안정적인 M1 버전)
     implementation 'org.springframework.ai:spring-ai-ollama-spring-boot-starter:1.0.0-M1'
 
-    compileOnly 'org.projectlombok:lombok'
-    annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 
