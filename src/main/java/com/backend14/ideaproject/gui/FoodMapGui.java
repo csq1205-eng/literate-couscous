@@ -19,7 +19,7 @@ public class FoodMapGui extends JFrame {
   private JButton analyzeButton;
 
   public FoodMapGui() {
-    setTitle("AI 맛집 탐정");
+    setTitle("어슬렁");
     setSize(850, 700);
     setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     setLocationRelativeTo(null);
@@ -31,7 +31,7 @@ public class FoodMapGui extends JFrame {
     JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
     mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-    JLabel titleLabel = new JLabel("AI 맛집 탐정", SwingConstants.CENTER);
+    JLabel titleLabel = new JLabel("어슬렁", SwingConstants.CENTER);
     titleLabel.setFont(new Font("SansSerif", Font.BOLD, 26));
     mainPanel.add(titleLabel, BorderLayout.NORTH);
 
